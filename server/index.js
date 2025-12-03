@@ -17,6 +17,7 @@ const bookingRoutes = require('./routes/bookings');
 app.use('/api/bookings', bookingRoutes);
 
 // Weather Route (Mock or Real)
+// In a production environment, this would call an external API like OpenWeatherMap
 app.get('/api/weather', async (req, res) => {
     const { date } = req.query;
     // Mock response for now
@@ -29,6 +30,7 @@ app.get('/api/weather', async (req, res) => {
 });
 
 // Database Connection
+// Connects to MongoDB Atlas if URI provided, otherwise falls back to in-memory database for local testing
 const connectDB = async () => {
     try {
         let mongoUri = process.env.MONGO_URI;

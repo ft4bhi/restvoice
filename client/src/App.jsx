@@ -37,15 +37,17 @@ function App() {
   };
 
   // Process user input based on current step
+  // This effect listens for changes in 'lastTranscript' which comes from the useVoice hook
   useEffect(() => {
     if (!lastTranscript || isSpeaking) return;
 
     const processInput = async () => {
       const input = lastTranscript.toLowerCase();
       addMessage(lastTranscript, 'user');
-      setTranscript(''); // Clear transcript after processing
+      setTranscript(''); // Clear transcript after processing to avoid loops
 
       switch (step) {
+        // Step 0: Initial Greeting and Intent Recognition
         case 'GREETING':
           if (input.includes('book') || input.includes('reservation') || input.includes('table')) {
             setStep('GUESTS');
