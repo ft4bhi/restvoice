@@ -46,20 +46,49 @@ A MERN stack voice-enabled AI agent for booking restaurant tables.
    # If MONGO_URI is omitted, it will use an in-memory database.
    ```
 
-### Running the Application
+### Option 1: Running with Docker (Recommended)
+This is the easiest way. It sets up the Database, Backend, and Frontend automatically.
 
-1. **Start the Backend**
-   ```bash
-   node server/index.js
-   ```
-   Server runs on `http://localhost:5000`.
+1.  **Start the Application**
+    ```bash
+    sudo docker-compose up --build
+    ```
+    *Note: Use `sudo` if your user doesn't have Docker permissions.*
 
-2. **Start the Frontend** (in a new terminal)
-   ```bash
-   cd client
-   npm run dev
-   ```
-   Client runs on `http://localhost:5173`.
+2.  **Access the App**
+    - Frontend: `http://localhost:5173`
+    - Backend: `http://localhost:5000`
+
+### Option 2: Running Locally (Manual)
+Use this if you don't want to use Docker.
+
+1.  **Start the Backend**
+    ```bash
+    # From the root directory
+    node server/index.js
+    ```
+    *It will automatically use an in-memory database if you don't have MongoDB installed.*
+
+2.  **Start the Frontend**
+    ```bash
+    # Open a new terminal
+    cd client
+    npm run dev
+    ```
+    Access at `http://localhost:5173`.
+
+## ⚠️ Troubleshooting & Best Practices
+
+### Preventing "Zombie Containers"
+To avoid containers getting stuck (permission denied errors):
+1.  **Always use `docker-compose down`**: Do not just close the terminal. Run this command to stop everything cleanly.
+2.  **Use `sudo` consistently**: If you start with `sudo`, you must stop with `sudo`.
+3.  **Restart Docker**: If something gets stuck, run `sudo systemctl restart docker`.
+
+### Port Conflicts
+If you see `Error: listen EADDRINUSE: address already in use :::5000`:
+- Check if another instance is running: `sudo lsof -i :5000`
+- Kill the process: `sudo kill -9 <PID>`
 
 ## Usage
 1. Open the frontend URL.

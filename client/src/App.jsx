@@ -21,6 +21,7 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState('');
+  const [textInput, setTextInput] = useState(''); // New state for text input
 
   const messagesEndRef = useRef(null);
 
@@ -36,131 +37,134 @@ function App() {
     setMessages(prev => [...prev, { text, sender }]);
   };
 
-  // Process user input based on current step
-  // This effect listens for changes in 'lastTranscript' which comes from the useVoice hook
-  useEffect(() => {
-    if (!lastTranscript || isSpeaking) return;
+  // Refactored processing to handle both voice and text
+  const processUserInput = async (input) => {
+    addMessage(input, 'user');
+    const lowerInput = input.toLowerCase();
 
-    const processInput = async () => {
-      const input = lastTranscript.toLowerCase();
-      addMessage(lastTranscript, 'user');
-      setTranscript(''); // Clear transcript after processing to avoid loops
+    switch (step) {
+      // Step 0: Initial Greeting and Intent Recognition
+      case 'GREETING':
+        if (lowerInput.includes('book') || lowerInput.includes('reservation') || lowerInput.includes('table')) {
+          setStep('GUESTS');
+          const msg = "Great! How many guests will be dining?";
+          addMessage(msg, 'agent');
+          speak(msg);
+        } else {
+          const msg = "I can help you book a table. Just say 'I want to book a table'.";
+          addMessage(msg, 'agent');
+          speak(msg);
+        }
+        break;
 
-      switch (step) {
-        // Step 0: Initial Greeting and Intent Recognition
-        case 'GREETING':
-          if (input.includes('book') || input.includes('reservation') || input.includes('table')) {
-            setStep('GUESTS');
-            const msg = "Great! How many guests will be dining?";
-            addMessage(msg, 'agent');
-            speak(msg);
+      case 'GUESTS':
+        const guests = lowerInput.match(/\d+/);
+        if (guests) {
+          setBooking(prev => ({ ...prev, numberOfGuests: parseInt(guests[0]) }));
+          setStep('DATE');
+          const msg = `Table for ${guests[0]}. What date would you like to book for? (e.g., tomorrow, next Friday)`;
+          addMessage(msg, 'agent');
+          speak(msg);
+        } else {
+          const msg = "I didn't catch the number. How many people?";
+          addMessage(msg, 'agent');
+          speak(msg);
+        }
+        break;
+
+      case 'DATE':
+        setBooking(prev => ({ ...prev, bookingDate: input }));
+
+        try {
+          const weatherRes = await axios.get(`${API_URL}/weather?date=${input}`);
+          setWeather(weatherRes.data);
+
+          let weatherMsg = "";
+          if (weatherRes.data.condition === 'sunny') {
+            weatherMsg = "The weather looks sunny! Would you prefer outdoor seating?";
           } else {
-            const msg = "I can help you book a table. Just say 'I want to book a table'.";
-            addMessage(msg, 'agent');
-            speak(msg);
+            weatherMsg = "It might rain. I recommend indoor seating. Is that okay?";
           }
-          break;
 
-        case 'GUESTS':
-          const guests = input.match(/\d+/);
-          if (guests) {
-            setBooking(prev => ({ ...prev, numberOfGuests: parseInt(guests[0]) }));
-            setStep('DATE');
-            const msg = `Table for ${guests[0]}. What date would you like to book for? (e.g., tomorrow, next Friday)`;
-            addMessage(msg, 'agent');
-            speak(msg);
-          } else {
-            const msg = "I didn't catch the number. How many people?";
-            addMessage(msg, 'agent');
-            speak(msg);
-          }
-          break;
-
-        case 'DATE':
-          // Simple date parsing (enhancement: use a library like chrono-node if needed, but keeping simple for now)
-          // For this assignment, we'll accept the raw string and try to fetch weather
-          setBooking(prev => ({ ...prev, bookingDate: lastTranscript })); // Store raw for now, backend can parse or we parse here
-
-          // Fetch weather
-          try {
-            const weatherRes = await axios.get(`${API_URL}/weather?date=${lastTranscript}`);
-            setWeather(weatherRes.data);
-
-            let weatherMsg = "";
-            if (weatherRes.data.condition === 'sunny') {
-              weatherMsg = "The weather looks sunny! Would you prefer outdoor seating?";
-            } else {
-              weatherMsg = "It might rain. I recommend indoor seating. Is that okay?";
-            }
-
-            setStep('SEATING'); // New step for seating based on weather
-            addMessage(weatherMsg, 'agent');
-            speak(weatherMsg);
-          } catch (err) {
-            console.error(err);
-            setStep('TIME');
-            const msg = "Got it. What time would you like?";
-            addMessage(msg, 'agent');
-            speak(msg);
-          }
-          break;
-
-        case 'SEATING':
-          if (input.includes('outdoor') || input.includes('outside')) {
-            setBooking(prev => ({ ...prev, seatingPreference: 'outdoor' }));
-          } else if (input.includes('indoor') || input.includes('inside')) {
-            setBooking(prev => ({ ...prev, seatingPreference: 'indoor' }));
-          }
-          // Move to time regardless
+          setStep('SEATING');
+          addMessage(weatherMsg, 'agent');
+          speak(weatherMsg);
+        } catch (err) {
+          console.error(err);
           setStep('TIME');
-          const timeMsg = "Noted. What time should I book the table for?";
-          addMessage(timeMsg, 'agent');
-          speak(timeMsg);
-          break;
+          const msg = "Got it. What time would you like?";
+          addMessage(msg, 'agent');
+          speak(msg);
+        }
+        break;
 
-        case 'TIME':
-          setBooking(prev => ({ ...prev, bookingTime: lastTranscript }));
-          setStep('CUISINE');
-          const cuisineMsg = "Do you have a cuisine preference? (Italian, Chinese, Indian, etc.)";
-          addMessage(cuisineMsg, 'agent');
-          speak(cuisineMsg);
-          break;
+      case 'SEATING':
+        if (lowerInput.includes('outdoor') || lowerInput.includes('outside')) {
+          setBooking(prev => ({ ...prev, seatingPreference: 'outdoor' }));
+        } else if (lowerInput.includes('indoor') || lowerInput.includes('inside')) {
+          setBooking(prev => ({ ...prev, seatingPreference: 'indoor' }));
+        }
+        setStep('TIME');
+        const timeMsg = "Noted. What time should I book the table for?";
+        addMessage(timeMsg, 'agent');
+        speak(timeMsg);
+        break;
 
-        case 'CUISINE':
-          setBooking(prev => ({ ...prev, cuisinePreference: lastTranscript }));
-          setStep('SPECIAL');
-          const specialMsg = "Any special requests? (Birthday, Anniversary, Dietary restrictions, or say None)";
-          addMessage(specialMsg, 'agent');
-          speak(specialMsg);
-          break;
+      case 'TIME':
+        setBooking(prev => ({ ...prev, bookingTime: input }));
+        setStep('CUISINE');
+        const cuisineMsg = "Do you have a cuisine preference? (Italian, Chinese, Indian, etc.)";
+        addMessage(cuisineMsg, 'agent');
+        speak(cuisineMsg);
+        break;
 
-        case 'SPECIAL':
-          setBooking(prev => ({ ...prev, specialRequests: lastTranscript }));
-          setStep('CONFIRM');
-          const confirmMsg = "Please confirm your booking details shown on screen. Say 'Confirm' to finalize or 'Cancel' to start over.";
-          addMessage(confirmMsg, 'agent');
-          speak(confirmMsg);
-          break;
+      case 'CUISINE':
+        setBooking(prev => ({ ...prev, cuisinePreference: input }));
+        setStep('SPECIAL');
+        const specialMsg = "Any special requests? (Birthday, Anniversary, Dietary restrictions, or say None)";
+        addMessage(specialMsg, 'agent');
+        speak(specialMsg);
+        break;
 
-        case 'CONFIRM':
-          if (input.includes('confirm') || input.includes('yes')) {
-            handleBookingSubmit();
-          } else if (input.includes('cancel') || input.includes('no')) {
-            setStep('GREETING');
-            setBooking({});
-            const cancelMsg = "Booking cancelled. How can I help you?";
-            addMessage(cancelMsg, 'agent');
-            speak(cancelMsg);
-          }
-          break;
+      case 'SPECIAL':
+        setBooking(prev => ({ ...prev, specialRequests: input }));
+        setStep('CONFIRM');
+        const confirmMsg = "Please confirm your booking details shown on screen. Say 'Confirm' to finalize or 'Cancel' to start over.";
+        addMessage(confirmMsg, 'agent');
+        speak(confirmMsg);
+        break;
 
-        default:
-          break;
-      }
-    };
+      case 'CONFIRM':
+        if (lowerInput.includes('confirm') || lowerInput.includes('yes')) {
+          handleBookingSubmit();
+        } else if (lowerInput.includes('cancel') || lowerInput.includes('no')) {
+          setStep('GREETING');
+          setBooking({});
+          const cancelMsg = "Booking cancelled. How can I help you?";
+          addMessage(cancelMsg, 'agent');
+          speak(cancelMsg);
+        }
+        break;
 
-    processInput();
-  }, [lastTranscript, step, isSpeaking, speak, setTranscript]);
+      default:
+        break;
+    }
+  };
+
+  // Effect for Voice Input
+  useEffect(() => {
+    if (lastTranscript && !isSpeaking) {
+      processUserInput(lastTranscript);
+      setTranscript('');
+    }
+  }, [lastTranscript, isSpeaking, step, speak, setTranscript]); // Added step, speak, setTranscript to dependencies
+
+  const onTextSubmit = (e) => {
+    e.preventDefault();
+    if (!textInput.trim()) return;
+    processUserInput(textInput);
+    setTextInput('');
+  };
 
   const handleBookingSubmit = async () => {
     try {
@@ -239,6 +243,17 @@ function App() {
                 Start Conversation
               </button>
             )}
+
+            <form onSubmit={onTextSubmit} className="input-area">
+              <input
+                type="text"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Type your response..."
+                disabled={isListening}
+              />
+              <button type="submit" disabled={!textInput.trim() || isListening}>Send</button>
+            </form>
           </>
         )}
       </div>

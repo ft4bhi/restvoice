@@ -44,13 +44,32 @@ const connectDB = async () => {
         await mongoose.connect(mongoUri);
         console.log(`MongoDB Connected: ${mongoUri}`);
     } catch (err) {
-        console.error('MongoDB connection error:', err);
-        process.exit(1);
+        console.error('MongoDB connection error:', err.message);
+        console.log('Falling back to in-memory MongoDB...');
+        const mongod = await MongoMemoryServer.create();
+        const memoryUri = mongod.getUri();
+        await mongoose.connect(memoryUri);
+        console.log(`MongoDB Connected (In-Memory): ${memoryUri}`);
     }
 };
 
 connectDB().then(() => {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });
+
+    // Graceful Shutdown Logic
+    const shutdown = async () => {
+        console.log('Shutting down server...');
+        server.close(() => {
+            console.log('HTTP server closed.');
+            mongoose.connection.close(false, () => {
+                console.log('MongoDB connection closed.');
+                process.exit(0);
+            });
+        });
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
 });
