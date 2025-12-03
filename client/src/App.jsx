@@ -3,13 +3,18 @@ import axios from 'axios';
 import { Mic, MicOff, Calendar, Users, Utensils, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useVoice } from './useVoice';
 import './index.css';
+import BookingDashboard from './BookingDashboard';
 
 const API_URL = 'http://localhost:5000/api';
 
 function App() {
   const { isListening, transcript, lastTranscript, isSpeaking, speak, startListening, setTranscript } = useVoice();
 
-  const [step, setStep] = useState('GREETING'); // GREETING, GUESTS, DATE, TIME, CUISINE, SPECIAL, CONFIRM, FINISHED
+  // Navigation State
+  const [view, setView] = useState('HOME'); // HOME, DASHBOARD
+
+  // Voice Agent State
+  const [step, setStep] = useState('GREETING'); // GREETING, NAME, GUESTS, DATE, TIME, CUISINE, SPECIAL, CONFIRM, FINISHED
   const [booking, setBooking] = useState({
     customerName: '',
     numberOfGuests: '',
@@ -22,7 +27,7 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState('');
-  const [textInput, setTextInput] = useState(''); // New state for text input
+  const [textInput, setTextInput] = useState('');
 
   const messagesEndRef = useRef(null);
 
@@ -191,7 +196,7 @@ function App() {
       processUserInput(lastTranscript);
       setTranscript('');
     }
-  }, [lastTranscript, isSpeaking, step, speak, setTranscript]); // Added step, speak, setTranscript to dependencies
+  }, [lastTranscript, isSpeaking, step, speak, setTranscript]);
 
   const onTextSubmit = (e) => {
     e.preventDefault();
@@ -223,6 +228,11 @@ function App() {
     speak(msg);
   };
 
+  // Conditional Rendering for Dashboard
+  if (view === 'DASHBOARD') {
+    return <BookingDashboard onBack={() => setView('HOME')} />;
+  }
+
   return (
     <div className="container">
       <h1>🍽️ Restaurant Voice Agent</h1>
@@ -234,6 +244,7 @@ function App() {
             <h2>Booking Confirmed!</h2>
             <p>See you on {booking.bookingDate} at {booking.bookingTime}</p>
             <button className="btn" onClick={() => window.location.reload()}>Book Another</button>
+            <button className="btn" style={{ marginTop: '1rem', background: '#6c5ce7' }} onClick={() => setView('DASHBOARD')}>View All Bookings</button>
           </div>
         ) : (
           <>
@@ -292,24 +303,16 @@ function App() {
         )}
       </div>
 
-
       <div style={{ marginTop: '2rem', textAlign: 'center' }}>
         <button
           className="btn"
           style={{ background: '#6c5ce7' }}
-          onClick={async () => {
-            try {
-              const res = await axios.get(`${API_URL}/bookings`);
-              alert(JSON.stringify(res.data, null, 2));
-            } catch (err) {
-              alert('Failed to fetch bookings');
-            }
-          }}
+          onClick={() => setView('DASHBOARD')}
         >
-          View All Bookings (JSON)
+          Manage Bookings
         </button>
       </div>
-    </div >
+    </div>
   );
 }
 
