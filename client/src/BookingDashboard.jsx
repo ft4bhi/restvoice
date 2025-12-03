@@ -75,8 +75,8 @@ function BookingDashboard({ onBack }) {
                         <div className="detail-item">
                             <MapPin size={20} />
                             <div>
-                                <label>Seating</label>
-                                <p style={{ textTransform: 'capitalize' }}>{selectedBooking.seatingPreference}</p>
+                                <label>Table</label>
+                                <p>Table #{selectedBooking.tableNumber} ({selectedBooking.seatingPreference})</p>
                             </div>
                         </div>
                     </div>
@@ -119,7 +119,10 @@ function BookingDashboard({ onBack }) {
                             <div className="booking-info">
                                 <h3>{booking.customerName}</h3>
                                 <p>{new Date(booking.bookingDate).toLocaleDateString()} at {booking.bookingTime}</p>
-                                <span className="badge">{booking.numberOfGuests} Guests</span>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <span className="badge">{booking.numberOfGuests} Guests</span>
+                                    <span className="badge" style={{ background: '#e8f5e9', color: '#2e7d32' }}>Table #{booking.tableNumber}</span>
+                                </div>
                             </div>
                             <button className="btn-icon-delete" onClick={(e) => handleDelete(e, booking._id)}>
                                 <Trash2 size={18} />

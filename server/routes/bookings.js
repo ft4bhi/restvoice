@@ -24,21 +24,61 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST create booking
+// POST create booking
 router.post('/', async (req, res) => {
-    const booking = new Booking({
-        customerName: req.body.customerName,
-        numberOfGuests: req.body.numberOfGuests,
-        bookingDate: req.body.bookingDate,
-        bookingTime: req.body.bookingTime,
-        cuisinePreference: req.body.cuisinePreference,
-        specialRequests: req.body.specialRequests,
-        weatherInfo: req.body.weatherInfo,
-        seatingPreference: req.body.seatingPreference
-    });
+    const {
+        customerName, numberOfGuests, bookingDate, bookingTime,
+        cuisinePreference, specialRequests, weatherInfo, seatingPreference
+    } = req.body;
 
     try {
+        // 1. Find potential tables based on Location and Capacity
+        // If 'any' preference, check both. Otherwise filter by preference.
+        const locationFilter = seatingPreference === 'any' ? {} : { location: seatingPreference };
+
+        const suitableTables = await require('../models/Table').find({
+            ...locationFilter,
+            capacity: { $gte: numberOfGuests }
+        }).sort({ capacity: 1 }); // Try to fit in smallest available table first
+
+        if (suitableTables.length === 0) {
+            return res.status(400).json({ message: `No tables available for ${numberOfGuests} guests in ${seatingPreference} area.` });
+        }
+
+        // 2. Check availability for the requested time slot
+        // For simplicity, we assume a booking blocks the table for the exact date/time slot.
+        // In a real app, you'd check a time range (e.g., +/- 1 hour).
+        const existingBookings = await Booking.find({
+            bookingDate: bookingDate,
+            bookingTime: bookingTime,
+            status: 'confirmed'
+        });
+
+        const bookedTableNumbers = existingBookings.map(b => b.tableNumber);
+
+        // 3. Find the first suitable table that is NOT in the booked list
+        const availableTable = suitableTables.find(t => !bookedTableNumbers.includes(t.tableNumber));
+
+        if (!availableTable) {
+            return res.status(400).json({ message: 'All suitable tables are booked for this time slot.' });
+        }
+
+        // 4. Create the booking with the assigned table
+        const booking = new Booking({
+            customerName,
+            numberOfGuests,
+            bookingDate,
+            bookingTime,
+            cuisinePreference,
+            specialRequests,
+            weatherInfo,
+            seatingPreference,
+            tableNumber: availableTable.tableNumber
+        });
+
         const newBooking = await booking.save();
-        res.status(201).json(newBooking);
+        res.status(201).json({ ...newBooking.toObject(), assignedTable: availableTable });
+
     } catch (err) {
         res.status(400).json({ message: err.message });
     }

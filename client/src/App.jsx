@@ -25,6 +25,7 @@ function App() {
     seatingPreference: 'any'
   });
   const [weather, setWeather] = useState(null);
+  const [suggestedSeating, setSuggestedSeating] = useState(null); // New state to track recommendation
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState('');
   const [textInput, setTextInput] = useState('');
@@ -119,12 +120,17 @@ function App() {
           setWeather(weatherRes.data);
 
           let weatherMsg = "";
+          let suggestion = "";
+
           if (weatherRes.data.condition === 'sunny') {
             weatherMsg = "The weather looks sunny! Would you prefer outdoor seating?";
+            suggestion = "outdoor";
           } else {
             weatherMsg = "It might rain. I recommend indoor seating. Is that okay?";
+            suggestion = "indoor";
           }
 
+          setSuggestedSeating(suggestion);
           setStep('SEATING');
           addMessage(weatherMsg, 'agent');
           speak(weatherMsg);
@@ -138,13 +144,28 @@ function App() {
         break;
 
       case 'SEATING':
+        let preference = 'any';
+
+        // Handle explicit choices
         if (lowerInput.includes('outdoor') || lowerInput.includes('outside')) {
-          setBooking(prev => ({ ...prev, seatingPreference: 'outdoor' }));
+          preference = 'outdoor';
         } else if (lowerInput.includes('indoor') || lowerInput.includes('inside')) {
-          setBooking(prev => ({ ...prev, seatingPreference: 'indoor' }));
+          preference = 'indoor';
         }
+        // Handle Yes/No based on suggestion context
+        else if (suggestedSeating) {
+          if (lowerInput.includes('yes') || lowerInput.includes('sure') || lowerInput.includes('okay')) {
+            preference = suggestedSeating;
+          } else if (lowerInput.includes('no')) {
+            // If user says NO to indoor, they want outdoor, and vice versa
+            preference = suggestedSeating === 'indoor' ? 'outdoor' : 'indoor';
+          }
+        }
+
+        setBooking(prev => ({ ...prev, seatingPreference: preference }));
+
         setStep('TIME');
-        const timeMsg = "Noted. What time should I book the table for?";
+        const timeMsg = `Noted, ${preference} seating. What time should I book the table for?`;
         addMessage(timeMsg, 'agent');
         speak(timeMsg);
         break;
