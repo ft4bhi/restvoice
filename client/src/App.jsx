@@ -11,6 +11,7 @@ function App() {
 
   const [step, setStep] = useState('GREETING'); // GREETING, GUESTS, DATE, TIME, CUISINE, SPECIAL, CONFIRM, FINISHED
   const [booking, setBooking] = useState({
+    customerName: '',
     numberOfGuests: '',
     bookingDate: '',
     bookingTime: '',
@@ -37,6 +38,27 @@ function App() {
     setMessages(prev => [...prev, { text, sender }]);
   };
 
+  const parseDate = (input) => {
+    const lower = input.toLowerCase();
+    const today = new Date();
+    let targetDate = new Date();
+
+    if (lower.includes('today')) {
+      // already today
+    } else if (lower.includes('tomorrow')) {
+      targetDate.setDate(today.getDate() + 1);
+    } else if (lower.includes('next week')) {
+      targetDate.setDate(today.getDate() + 7);
+    } else {
+      // Try to parse as standard date
+      const parsed = Date.parse(input);
+      if (!isNaN(parsed)) {
+        targetDate = new Date(parsed);
+      }
+    }
+    return targetDate.toISOString();
+  };
+
   // Refactored processing to handle both voice and text
   const processUserInput = async (input) => {
     addMessage(input, 'user');
@@ -46,8 +68,8 @@ function App() {
       // Step 0: Initial Greeting and Intent Recognition
       case 'GREETING':
         if (lowerInput.includes('book') || lowerInput.includes('reservation') || lowerInput.includes('table')) {
-          setStep('GUESTS');
-          const msg = "Great! How many guests will be dining?";
+          setStep('NAME');
+          const msg = "Great! May I have your name for the booking?";
           addMessage(msg, 'agent');
           speak(msg);
         } else {
@@ -55,6 +77,16 @@ function App() {
           addMessage(msg, 'agent');
           speak(msg);
         }
+        break;
+
+      case 'NAME':
+        // Simple name extraction (taking the whole input for now)
+        const name = input.replace(/my name is/i, '').trim();
+        setBooking(prev => ({ ...prev, customerName: name }));
+        setStep('GUESTS');
+        const guestMsg = `Thanks ${name}. How many guests will be dining?`;
+        addMessage(guestMsg, 'agent');
+        speak(guestMsg);
         break;
 
       case 'GUESTS':
@@ -73,10 +105,12 @@ function App() {
         break;
 
       case 'DATE':
-        setBooking(prev => ({ ...prev, bookingDate: input }));
+        const formattedDate = parseDate(input);
+        setBooking(prev => ({ ...prev, bookingDate: formattedDate }));
 
         try {
-          const weatherRes = await axios.get(`${API_URL}/weather?date=${input}`);
+          // Use the formatted date for weather check as well (simplified)
+          const weatherRes = await axios.get(`${API_URL}/weather?date=${formattedDate}`);
           setWeather(weatherRes.data);
 
           let weatherMsg = "";
@@ -257,7 +291,25 @@ function App() {
           </>
         )}
       </div>
-    </div>
+
+
+      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+        <button
+          className="btn"
+          style={{ background: '#6c5ce7' }}
+          onClick={async () => {
+            try {
+              const res = await axios.get(`${API_URL}/bookings`);
+              alert(JSON.stringify(res.data, null, 2));
+            } catch (err) {
+              alert('Failed to fetch bookings');
+            }
+          }}
+        >
+          View All Bookings (JSON)
+        </button>
+      </div>
+    </div >
   );
 }
 

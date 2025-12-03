@@ -59,23 +59,41 @@ This is the easiest way. It sets up the Database, Backend, and Frontend automati
     - Frontend: `http://localhost:5173`
     - Backend: `http://localhost:5000`
 
-### Option 2: Running Locally (Manual)
-Use this if you don't want to use Docker.
-
+### Option 2: Running Locally (Manual with In-Memory DB)
+Use this if you want to run the app quickly without installing MongoDB.
 1.  **Start the Backend**
     ```bash
     # From the root directory
+    npm install
     node server/index.js
     ```
-    *It will automatically use an in-memory database if you don't have MongoDB installed.*
+    *It will automatically use an in-memory database.*
 
 2.  **Start the Frontend**
     ```bash
     # Open a new terminal
     cd client
+    npm install
     npm run dev
     ```
     Access at `http://localhost:5173`.
+
+### Option 3: Running Locally (Manual with Real MongoDB)
+If you want a persistent database but haven't installed MongoDB on your system, use Docker for just the database.
+
+1.  **Start MongoDB Container**
+    ```bash
+    sudo docker run -d -p 27017:27017 --name mongodb mongo:latest
+    ```
+
+2.  **Configure Backend**
+    Create or update `server/.env` (or `.env` in root) with:
+    ```env
+    MONGO_URI=mongodb://localhost:27017/restvoice
+    ```
+
+3.  **Start Backend & Frontend**
+    Follow the steps in Option 2. The backend will now connect to your Docker MongoDB.
 
 ## ⚠️ Troubleshooting & Best Practices
 

@@ -12,6 +12,17 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Root Route
+app.get('/', (req, res) => {
+    res.json({
+        message: 'Restaurant Booking Voice Agent API is running!',
+        endpoints: {
+            bookings: '/api/bookings',
+            weather: '/api/weather'
+        }
+    });
+});
+
 // Routes
 const bookingRoutes = require('./routes/bookings');
 app.use('/api/bookings', bookingRoutes);
@@ -61,12 +72,16 @@ connectDB().then(() => {
     // Graceful Shutdown Logic
     const shutdown = async () => {
         console.log('Shutting down server...');
-        server.close(() => {
+        server.close(async () => {
             console.log('HTTP server closed.');
-            mongoose.connection.close(false, () => {
+            try {
+                await mongoose.connection.close();
                 console.log('MongoDB connection closed.');
                 process.exit(0);
-            });
+            } catch (err) {
+                console.error('Error closing MongoDB connection:', err);
+                process.exit(1);
+            }
         });
     };
 
